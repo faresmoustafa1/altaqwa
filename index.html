@@ -1,0 +1,519 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>نظام إدارة الغسيل — نموذج تجريبي</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#f3f6f9; --card:#fff; --ink:#14212b; --muted:#6b7a86; --line:#e3e9ee;
+    --brand:#0b6e8a; --brand-2:#0e8fb3; --brand-soft:#e3f3f8;
+    --ok:#178a4c; --ok-soft:#e4f5ea; --warn:#b86e00; --warn-soft:#fff3df;
+    --bad:#c23b3b; --bad-soft:#fdeaea; --radius:16px;
+    --shadow:0 1px 2px rgba(20,33,43,.06),0 4px 14px rgba(20,33,43,.05);
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;background:var(--bg);color:var(--ink);font-family:"Cairo",system-ui,-apple-system,"Segoe UI",Tahoma,sans-serif;font-size:15px;line-height:1.55}
+  button{font-family:inherit;font-size:inherit;cursor:pointer;border:0}
+  .app{max-width:480px;margin:0 auto;min-height:100vh;padding-bottom:32px}
+
+  /* top bar */
+  header{position:sticky;top:0;z-index:20;background:linear-gradient(135deg,var(--brand),var(--brand-2));color:#fff;padding:12px 14px 10px;box-shadow:0 2px 10px rgba(11,110,138,.25)}
+  .brand{display:flex;align-items:center;justify-content:space-between;gap:8px}
+  .brand h1{font-size:17px;margin:0;font-weight:800;display:flex;align-items:center;gap:8px}
+  .drop{width:26px;height:26px;border-radius:50% 50% 50% 0;transform:rotate(-45deg);background:rgba(255,255,255,.9);display:inline-block;position:relative}
+  .drop::after{content:"";position:absolute;inset:7px;border-radius:50%;background:var(--brand-2)}
+  .sample-tag{font-size:11px;font-weight:700;background:#ffd166;color:#4a3300;padding:3px 9px;border-radius:99px;white-space:nowrap}
+  .tabs{display:grid;grid-template-columns:repeat(3,1fr);gap:4px;margin-top:10px;background:rgba(255,255,255,.16);padding:4px;border-radius:12px}
+  .tab{background:transparent;color:#fff;padding:8px 4px;border-radius:9px;font-weight:700;font-size:13.5px;opacity:.85}
+  .tab.active{background:#fff;color:var(--brand);opacity:1}
+
+  .banner{margin:12px 14px 0;background:var(--warn-soft);color:#6d4300;border:1px dashed #e8b45a;border-radius:12px;padding:8px 12px;font-size:12.5px}
+  main{padding:0 14px}
+  .view{display:none;animation:fade .25s ease}
+  .view.active{display:block}
+  @keyframes fade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+
+  h2{font-size:16px;margin:20px 2px 10px;font-weight:800}
+  h2 small{font-weight:600;color:var(--muted);font-size:12.5px;margin-inline-start:6px}
+  .card{background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);padding:14px}
+  .muted{color:var(--muted)}
+  .hello{margin:16px 2px 0}
+  .hello b{font-size:19px;display:block}
+
+  /* KPIs */
+  .kpis{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px}
+  .kpi{background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);padding:12px 14px}
+  .kpi .label{font-size:12.5px;color:var(--muted);font-weight:600}
+  .kpi .value{font-size:22px;font-weight:800;margin-top:2px;transition:color .3s}
+  .kpi .sub{font-size:12px;color:var(--muted)}
+  .kpi.hero{grid-column:1/-1;background:linear-gradient(135deg,#0b6e8a,#0e8fb3);color:#fff}
+  .kpi.hero .label,.kpi.hero .sub{color:rgba(255,255,255,.85)}
+  .kpi.hero .value{font-size:28px}
+  .flash{animation:flash .9s ease}
+  @keyframes flash{0%{transform:scale(1)}30%{transform:scale(1.06)}100%{transform:scale(1)}}
+
+  /* lists */
+  .row{display:flex;align-items:center;gap:10px;padding:11px 0;border-bottom:1px solid var(--line)}
+  .row:last-child{border-bottom:0}
+  .row .grow{flex:1;min-width:0}
+  .row .name{font-weight:700}
+  .row .meta{font-size:12.5px;color:var(--muted)}
+  .avatar{width:38px;height:38px;border-radius:50%;background:var(--brand-soft);color:var(--brand);display:grid;place-items:center;font-weight:800;flex-shrink:0}
+  .pill{font-size:11.5px;font-weight:700;padding:2px 8px;border-radius:99px;display:inline-block}
+  .pill.bad{background:var(--bad-soft);color:var(--bad)}
+  .pill.ok{background:var(--ok-soft);color:var(--ok)}
+  .pill.warn{background:var(--warn-soft);color:var(--warn)}
+  .btn{border-radius:11px;padding:8px 12px;font-weight:700;font-size:13px;display:inline-flex;align-items:center;gap:6px;justify-content:center;transition:transform .1s,background .2s}
+  .btn:active{transform:scale(.97)}
+  .btn.wa{background:#25d366;color:#fff}
+  .btn.wa.sent{background:var(--ok-soft);color:var(--ok)}
+  .btn.ghost{background:var(--bg);color:var(--ink)}
+  .btn.primary{background:var(--brand);color:#fff}
+  .btn.block{width:100%;padding:13px;font-size:15px}
+  .btn[disabled]{opacity:.55;cursor:default}
+  .actions{display:flex;flex-direction:column;gap:6px;align-items:stretch}
+  .link-btn{background:none;color:var(--brand);font-weight:700;padding:8px 0 0;width:100%;font-size:13px}
+
+  /* bars */
+  .bar{height:8px;background:var(--line);border-radius:99px;overflow:hidden}
+  .bar > i{display:block;height:100%;border-radius:99px;background:var(--brand-2);transition:width .5s ease}
+  .bar.ok > i{background:var(--ok)} .bar.warn > i{background:#e09a26} .bar.bad > i{background:var(--bad)}
+  .cmp-row{padding:10px 0;border-bottom:1px solid var(--line)}
+  .cmp-row:last-child{border-bottom:0}
+  .cmp-head{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px}
+  .cmp-head b{font-size:14px}
+  .cmp-head span{font-weight:800}
+
+  /* worker */
+  .worker-top{margin-top:14px}
+  .progress-big{height:14px}
+  .progress-text{display:flex;justify-content:space-between;font-weight:700;margin-bottom:8px}
+  .stats3{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:12px;text-align:center}
+  .stats3 div{background:var(--bg);border-radius:11px;padding:6px}
+  .stats3 b{display:block;font-size:18px}
+  .stats3 span{font-size:11.5px;color:var(--muted)}
+  .car{background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);padding:14px;margin-bottom:10px;border-inline-start:5px solid var(--line);transition:border-color .3s,opacity .3s}
+  .car.done{border-inline-start-color:var(--ok)}
+  .car.absent{border-inline-start-color:#e09a26}
+  .car-head{display:flex;justify-content:space-between;align-items:flex-start;gap:8px}
+  .plate{display:inline-block;border:2px solid var(--ink);border-radius:6px;padding:0 8px;font-weight:800;font-size:13px;letter-spacing:1px;background:#fff}
+  .car-actions{display:grid;grid-template-columns:2fr 1fr;gap:8px;margin-top:12px}
+  .btn-wash{background:var(--ok);color:#fff;font-size:17px;padding:15px;border-radius:13px;font-weight:800}
+  .btn-absent{background:var(--warn-soft);color:var(--warn);font-size:14px;padding:15px 8px;border-radius:13px;font-weight:800}
+  .photos{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}
+  .photo{border:2px dashed var(--line);border-radius:12px;height:76px;display:grid;place-items:center;color:var(--muted);font-size:12.5px;font-weight:700;background:var(--bg);text-align:center;padding:4px}
+  .photo.taken{border-style:solid;border-color:var(--brand-2);color:var(--brand);background:linear-gradient(135deg,#d7eef6,#eef8fb)}
+  .done-msg{margin-top:10px;font-weight:700;display:flex;justify-content:space-between;align-items:center}
+  .undo{background:none;color:var(--muted);font-size:12.5px;text-decoration:underline}
+
+  /* subscriber */
+  .status-card{border-radius:var(--radius);padding:16px;color:#fff;margin-top:14px;box-shadow:var(--shadow);transition:background .4s}
+  .status-card.late{background:linear-gradient(135deg,#c23b3b,#e0603f)}
+  .status-card.paid{background:linear-gradient(135deg,#178a4c,#22a862)}
+  .status-card .big{font-size:22px;font-weight:800}
+  .status-card .row2{display:flex;justify-content:space-between;margin-top:10px;font-size:13px;opacity:.95}
+  .washes{display:flex;gap:6px;margin-top:8px}
+  .washes i{flex:1;height:10px;border-radius:5px;background:rgba(255,255,255,.3)}
+  .washes i.on{background:#fff}
+  .methods{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:10px}
+  .method{background:var(--bg);border:2px solid transparent;border-radius:13px;padding:10px 4px;text-align:center;font-weight:700;font-size:12.5px}
+  .method .ico{width:34px;height:34px;border-radius:10px;margin:0 auto 5px;display:grid;place-items:center;color:#fff;font-weight:800;font-size:13px}
+  .method.sel{border-color:var(--brand);background:var(--brand-soft)}
+  .services .row .price{font-weight:800;white-space:nowrap}
+  .ref{display:flex;gap:8px;align-items:center;margin-top:8px}
+  .code{flex:1;border:2px dashed var(--brand-2);border-radius:12px;padding:10px;text-align:center;font-weight:800;letter-spacing:2px;color:var(--brand);background:var(--brand-soft);direction:ltr}
+
+  /* modal + toast */
+  .overlay{position:fixed;inset:0;background:rgba(10,20,28,.45);display:none;align-items:flex-end;justify-content:center;z-index:50}
+  .overlay.show{display:flex}
+  .sheet{background:#fff;width:100%;max-width:480px;border-radius:20px 20px 0 0;padding:18px 16px 24px;animation:up .25s ease}
+  @keyframes up{from{transform:translateY(40px);opacity:0}to{transform:none;opacity:1}}
+  .sheet h3{margin:0 0 4px;font-size:17px}
+  .inst{background:var(--bg);border-radius:12px;padding:12px;margin:12px 0;font-size:13.5px}
+  .fake-input{background:var(--bg);border-radius:10px;padding:10px 12px;margin-top:6px;color:var(--muted);direction:ltr;text-align:left;font-size:13px}
+  .toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%) translateY(30px);background:#14212b;color:#fff;padding:10px 16px;border-radius:12px;font-weight:600;font-size:13.5px;opacity:0;transition:.3s;z-index:60;max-width:90vw;text-align:center}
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+  footer{text-align:center;color:var(--muted);font-size:11.5px;margin-top:26px;padding:0 14px}
+  @media (min-width:600px){ body{padding:20px 0} .app{border-radius:24px;overflow:hidden;box-shadow:0 10px 40px rgba(20,33,43,.12);background:var(--bg)} header{border-radius:0} }
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <div class="brand">
+      <h1><span class="drop" aria-hidden="true"></span> غسيل الكمبوند</h1>
+      <span class="sample-tag">نموذج تجريبي</span>
+    </div>
+    <nav class="tabs" role="tablist">
+      <button class="tab active" data-view="owner">صاحب الشركة</button>
+      <button class="tab" data-view="worker">العامل</button>
+      <button class="tab" data-view="sub">المشترك</button>
+    </nav>
+  </header>
+
+  <div class="banner">⚠️ كل الأسماء والأرقام هنا <b>بيانات تجريبية</b> للعرض بس، مش أرقام حقيقية.</div>
+
+  <main>
+    <!-- ================= OWNER ================= -->
+    <section class="view active" id="view-owner">
+      <div class="hello"><span class="muted">صباح الخير 👋</span><b>أستاذ فهمي</b><span class="muted" id="month-label"></span></div>
+
+      <div class="kpis">
+        <div class="kpi hero"><div class="label">إيراد الشهر لحد النهارده</div><div class="value" id="k-rev">—</div><div class="sub" id="k-rev-sub"></div></div>
+        <div class="kpi"><div class="label">مشتركين فعّالين</div><div class="value" id="k-subs">—</div><div class="sub">في ٥ كمبوندات (عيّنة)</div></div>
+        <div class="kpi"><div class="label">نسبة التحصيل</div><div class="value" id="k-rate">—</div><div class="sub" id="k-rate-sub"></div></div>
+        <div class="kpi"><div class="label">متأخرين في الدفع</div><div class="value" style="color:var(--bad)" id="k-late">—</div><div class="sub" id="k-late-sub"></div></div>
+        <div class="kpi"><div class="label">غسلات النهارده</div><div class="value" id="k-washes">—</div><div class="sub">كل العمال</div></div>
+      </div>
+
+      <h2>المتأخرين في الدفع <small id="late-count"></small></h2>
+      <div class="card" id="late-list"></div>
+
+      <h2>نسبة التحصيل في كل كمبوند</h2>
+      <div class="card" id="cmp-list"></div>
+
+      <h2>أداء العمال <small>الشهر ده</small></h2>
+      <div class="card" id="workers-list"></div>
+    </section>
+
+    <!-- ================= WORKER ================= -->
+    <section class="view" id="view-worker">
+      <div class="hello"><span class="muted">أهلاً يا</span><b>محمود — كمبوند الياسمين</b><span class="muted" id="today-label"></span></div>
+
+      <div class="card worker-top">
+        <div class="progress-text"><span>عربيات النهارده</span><span id="w-progress-text"></span></div>
+        <div class="bar progress-big ok"><i id="w-progress" style="width:0"></i></div>
+        <div class="stats3">
+          <div><b id="w-done">٠</b><span>اتغسلت</span></div>
+          <div><b id="w-absent">٠</b><span>غايبة</span></div>
+          <div><b id="w-left">٠</b><span>فاضل</span></div>
+        </div>
+      </div>
+
+      <h2>القايمة <small>رتّب حسب الجراج</small></h2>
+      <div id="cars"></div>
+    </section>
+
+    <!-- ================= SUBSCRIBER ================= -->
+    <section class="view" id="view-sub">
+      <div class="hello"><span class="muted">أهلاً</span><b>محمد</b><span class="muted">هيونداي إلنترا بيضا · <span class="plate">ط ص ب ٤٥٨</span></span></div>
+
+      <div class="status-card late" id="status-card">
+        <div style="font-size:13px;opacity:.9" id="st-label">حالة الاشتراك</div>
+        <div class="big" id="st-big">متأخر — ٥٠٠ ج</div>
+        <div style="font-size:13px" id="st-small">شهرين مش مدفوعين (أكتوبر ونوفمبر)</div>
+        <div class="row2"><span>غسلات الشهر ده</span><span id="st-washes">٥ من ٨</span></div>
+        <div class="washes" id="st-bars"></div>
+        <div class="row2"><span>الغسلة الجاية</span><span id="st-next">السبت الصبح</span></div>
+      </div>
+
+      <h2>ادفع / جدّد الاشتراك</h2>
+      <div class="card">
+        <div class="muted" style="font-size:13px">اختار الطريقة اللي تريحك:</div>
+        <div class="methods" id="methods">
+          <button class="method" data-m="vf"><div class="ico" style="background:#e60000">VF</div>فودافون كاش</button>
+          <button class="method sel" data-m="ipa"><div class="ico" style="background:#5b2d90">IPA</div>إنستاباي</button>
+          <button class="method" data-m="card"><div class="ico" style="background:#1d3a6e">💳</div>كارت</button>
+        </div>
+        <button class="btn primary block" style="margin-top:12px" id="pay-btn">ادفع ٥٠٠ ج</button>
+        <button class="btn ghost block" style="margin-top:8px" id="renew-3">جدّد ٣ شهور مرة واحدة</button>
+      </div>
+
+      <h2>غسلة زيادة</h2>
+      <div class="card">
+        <div class="row" style="padding-top:0">
+          <div class="avatar">＋</div>
+          <div class="grow"><div class="name">اطلب غسلة إضافية</div><div class="meta">العامل هييجي في أقرب ميعاد · ٥٠ ج</div></div>
+          <button class="btn primary" id="extra-btn">اطلب</button>
+        </div>
+        <div class="meta" id="extra-note" style="display:none"></div>
+      </div>
+
+      <h2>خدمات تانية <small>أسعار تجريبية</small></h2>
+      <div class="card services" id="services"></div>
+
+      <h2>ادعي جارك</h2>
+      <div class="card">
+        <div style="font-size:13.5px">ابعت الكود لجارك، ولما يشترك تاخدوا انتو الاتنين <b>غسلة ببلاش</b>.</div>
+        <div class="ref"><div class="code">EMAN-458</div><button class="btn primary" id="copy-ref">انسخ</button></div>
+        <button class="btn wa block" style="margin-top:8px" id="share-ref">ابعته على واتساب</button>
+      </div>
+    </section>
+  </main>
+
+  <footer>نموذج تجريبي للعرض فقط · كل البيانات وهمية · مافيش دفع حقيقي بيتم</footer>
+</div>
+
+<!-- payment sheet -->
+<div class="overlay" id="overlay">
+  <div class="sheet">
+    <h3 id="sheet-title">الدفع</h3>
+    <div class="muted" id="sheet-amount"></div>
+    <div class="inst" id="sheet-inst"></div>
+    <button class="btn primary block" id="sheet-confirm">تأكيد الدفع</button>
+    <button class="btn ghost block" style="margin-top:8px" id="sheet-cancel">إلغاء</button>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+(function(){
+  "use strict";
+  const ar = n => Number(n).toLocaleString("ar-EG");
+  const egp = n => ar(n) + " ج";
+  const $ = s => document.querySelector(s);
+  const PRICE = 250;
+
+  /* ---------- SAMPLE DATA (fake) ---------- */
+  const compounds = [
+    {id:"y", name:"كمبوند الياسمين", city:"التجمع الخامس", subs:48, paid:41},
+    {id:"n", name:"كمبوند النخيل", city:"الشيخ زايد", subs:62, paid:55},
+    {id:"z", name:"كمبوند الزيتون", city:"٦ أكتوبر", subs:37, paid:29},
+    {id:"l", name:"كمبوند اللوتس", city:"الإسكندرية", subs:29, paid:27},
+    {id:"s", name:"كمبوند السنديان", city:"المنصورة", subs:24, paid:17}
+  ];
+  let extras = 3450;          // sample extra washes + add-ons this month
+  let washesToday = 61;       // sample, all workers except محمود's live list
+  const late = [
+    {id:1, name:"محمد أحمد", c:"y", days:58, amount:500, me:true},
+    {id:2, name:"شريف عبد الله", c:"z", days:21, amount:250},
+    {id:3, name:"منى السيد", c:"s", days:17, amount:250},
+    {id:4, name:"عمرو فتحي", c:"n", days:14, amount:250},
+    {id:5, name:"هالة مصطفى", c:"z", days:12, amount:250},
+    {id:6, name:"ياسر حسن", c:"s", days:9, amount:250},
+    {id:7, name:"دينا رمضان", c:"y", days:8, amount:250},
+    {id:8, name:"خالد نبيل", c:"n", days:6, amount:250}
+  ];
+  const workers = [
+    {name:"محمود", c:"y", done:118, sched:124, absent:3},
+    {name:"أحمد", c:"n", done:151, sched:158, absent:5},
+    {name:"كريم", c:"z", done:84, sched:96, absent:9},
+    {name:"سيد", c:"l", done:77, sched:78, absent:1},
+    {name:"مصطفى", c:"s", done:55, sched:62, absent:4}
+  ];
+  const cars = [
+    {o:"أ. حسام", car:"كيا سيراتو رمادي", plate:"س ع د ٢١٣", loc:"عمارة ٣ · جراج B-12"},
+    {o:"د. نهى", car:"تويوتا كورولا أبيض", plate:"ن ه ى ٧٧٠", loc:"عمارة ٣ · جراج B-15"},
+    {o:"محمد", car:"هيونداي إلنترا أبيض", plate:"ط ص ب ٤٥٨", loc:"عمارة ٥ · قدام المدخل"},
+    {o:"م. طارق", car:"MG ZS أحمر", plate:"م ج ط ٩٠١", loc:"عمارة ٥ · جراج C-02"},
+    {o:"أ. رانيا", car:"نيسان صني فضي", plate:"ر ا ن ٣٣٤", loc:"عمارة ٧ · الباركينج الخارجي"},
+    {o:"أ. وليد", car:"شيفروليه أوبترا أسود", plate:"و ل د ١٥٦", loc:"عمارة ٧ · جراج A-08"},
+    {o:"أ. سلمى", car:"بيجو ٢٠٠٨ أزرق", plate:"س ل م ٦٨٢", loc:"عمارة ٩ · جراج A-21"},
+    {o:"م. باسم", car:"تويوتا فورتشنر أبيض", plate:"ب س م ٤٤٠", loc:"فيلا ١٢"},
+    {o:"أ. منة", car:"سوزوكي سويفت أحمر", plate:"م ن ة ٨١٩", loc:"فيلا ١٨"},
+    {o:"أ. أشرف", car:"هيونداي توسان رمادي", plate:"ا ش ف ٢٧٥", loc:"فيلا ٢٣"}
+  ].map((c,i)=>({...c, id:i, st: i<2 ? "done" : "todo", before: i<2, after: i<2}));
+  const services = [
+    {n:"تنظيف داخلي كامل", d:"مكنسة + فرش + تابلوه", p:150},
+    {n:"تلميع خارجي", d:"بوليش + واكس", p:300},
+    {n:"تلميع فوانيس", d:"للفوانيس المصفرّة", p:120}
+  ];
+  const sub = {paid:false, washes:5, total:8, owed:500};
+
+  /* ---------- helpers ---------- */
+  const cName = id => compounds.find(c=>c.id===id).name;
+  let toastT;
+  function toast(msg){ const t=$("#toast"); t.textContent=msg; t.classList.add("show"); clearTimeout(toastT); toastT=setTimeout(()=>t.classList.remove("show"),2400); }
+  function flash(el){ el.classList.remove("flash"); void el.offsetWidth; el.classList.add("flash"); }
+  const tone = r => r>=.9 ? "ok" : r>=.8 ? "warn" : "bad";
+
+  const months = ["يناير","فبراير","مارس","أبريل","مايو","يونيو","يوليو","أغسطس","سبتمبر","أكتوبر","نوفمبر","ديسمبر"];
+  const days = ["الأحد","الاتنين","التلات","الأربع","الخميس","الجمعة","السبت"];
+  const now = new Date();
+  $("#month-label").textContent = "ملخص شهر " + months[now.getMonth()];
+  $("#today-label").textContent = days[now.getDay()] + " " + ar(now.getDate()) + " " + months[now.getMonth()];
+
+  /* ---------- tabs ---------- */
+  document.querySelectorAll(".tab").forEach(b=>b.addEventListener("click",()=>{
+    document.querySelectorAll(".tab").forEach(x=>x.classList.toggle("active",x===b));
+    document.querySelectorAll(".view").forEach(v=>v.classList.toggle("active",v.id==="view-"+b.dataset.view));
+    window.scrollTo({top:0,behavior:"smooth"});
+    if(b.dataset.view==="owner") renderOwner();
+  }));
+
+  /* ---------- OWNER ---------- */
+  const sentReminders = new Set();
+  let showAllLate = false;
+  function renderOwner(){
+    const subs = compounds.reduce((a,c)=>a+c.subs,0);
+    const paid = compounds.reduce((a,c)=>a+c.paid,0);
+    const rev = paid*PRICE + extras;
+    const lateCount = subs - paid;
+    const prevRev = $("#k-rev").dataset.v;
+    $("#k-rev").textContent = egp(rev); $("#k-rev").dataset.v = rev;
+    if(prevRev && +prevRev!==rev) flash($("#k-rev"));
+    $("#k-rev-sub").textContent = "اشتراكات " + egp(paid*PRICE) + " + إضافات " + egp(extras);
+    $("#k-subs").textContent = ar(subs);
+    $("#k-rate").textContent = ar(Math.round(paid/subs*100)) + "٪";
+    $("#k-rate-sub").textContent = ar(paid) + " دفعوا من " + ar(subs);
+    $("#k-late").textContent = ar(lateCount);
+    $("#k-late-sub").textContent = "= " + egp(late.reduce((a,l)=>a+l.amount,0) + (lateCount-late.length)*PRICE) + " واقفين";
+    const doneToday = cars.filter(c=>c.st==="done").length;
+    $("#k-washes").textContent = ar(washesToday + doneToday);
+
+    // late list
+    $("#late-count").textContent = "(" + ar(lateCount) + ")";
+    const list = showAllLate ? late : late.slice(0,5);
+    $("#late-list").innerHTML = (list.length ? list.map(l=>`
+      <div class="row">
+        <div class="avatar">${l.name[0]}</div>
+        <div class="grow">
+          <div class="name">${l.name}</div>
+          <div class="meta">${cName(l.c)} · <span class="pill ${l.days>30?'bad':'warn'}">متأخر ${ar(l.days)} يوم</span></div>
+          <div class="meta">عليه ${egp(l.amount)}</div>
+        </div>
+        <div class="actions">
+          <button class="btn wa ${sentReminders.has(l.id)?'sent':''}" data-remind="${l.id}">${sentReminders.has(l.id)?'✓ اتبعت':'💬 فكّره'}</button>
+          <button class="btn ghost" data-markpaid="${l.id}">دفع كاش</button>
+        </div>
+      </div>`).join("") : `<div class="muted" style="text-align:center;padding:10px">مافيش متأخرين 🎉</div>`)
+      + (late.length>5 ? `<button class="link-btn" id="toggle-late">${showAllLate?'عرض أقل':'عرض الكل'}</button>`:"")
+      + `<div class="meta" style="margin-top:6px">باقي المتأخرين (${ar(lateCount-late.length)}) في صفحة التفاصيل — بيانات تجريبية.</div>`;
+
+    // compounds
+    $("#cmp-list").innerHTML = compounds.map(c=>{
+      const r=c.paid/c.subs;
+      return `<div class="cmp-row"><div class="cmp-head"><b>${c.name} <span class="muted" style="font-weight:600;font-size:12px">· ${c.city}</span></b><span style="color:var(--${tone(r)==='ok'?'ok':tone(r)==='warn'?'warn':'bad'})">${ar(Math.round(r*100))}٪</span></div>
+      <div class="bar ${tone(r)}"><i style="width:${r*100}%"></i></div>
+      <div class="meta" style="margin-top:4px">${ar(c.paid)} دفعوا من ${ar(c.subs)} · ${egp(c.paid*PRICE)}</div></div>`;
+    }).join("");
+
+    // workers
+    $("#workers-list").innerHTML = workers.map(w=>{
+      const extraToday = w.name==="محمود" ? doneToday-2 : 0;
+      const done = w.done + extraToday, r = done/w.sched;
+      return `<div class="row"><div class="avatar">${w.name[0]}</div><div class="grow">
+        <div class="cmp-head" style="margin-bottom:4px"><span class="name">${w.name} <span class="meta">· ${cName(w.c)}</span></span><span style="font-size:13px">${ar(done)}/${ar(w.sched)}</span></div>
+        <div class="bar ${tone(r)}"><i style="width:${Math.min(r,1)*100}%"></i></div>
+        <div class="meta" style="margin-top:3px">غسلات اتعملت ${ar(Math.round(r*100))}٪ · عربيات غايبة ${ar(w.absent)}</div>
+      </div></div>`;
+    }).join("");
+  }
+  $("#late-list").addEventListener("click",e=>{
+    const r=e.target.closest("[data-remind]"), p=e.target.closest("[data-markpaid]"), t=e.target.closest("#toggle-late");
+    if(t){ showAllLate=!showAllLate; renderOwner(); return; }
+    if(r){
+      const id=+r.dataset.remind; if(sentReminders.has(id)) return;
+      const l=late.find(x=>x.id===id);
+      sentReminders.add(id); renderOwner();
+      toast("اتبعت لـ" + l.name + ": «فاكرينك 🙏 اشتراك الغسيل عليه " + egp(l.amount) + "، تقدر تدفع من اللينك بفودافون كاش أو إنستاباي أو كارت»");
+    }
+    if(p){ markPaid(+p.dataset.markpaid, "كاش (سجّله المحصّل)"); }
+  });
+  function markPaid(id, how){
+    const i=late.findIndex(x=>x.id===id); if(i<0) return;
+    const l=late[i]; const c=compounds.find(x=>x.id===l.c);
+    c.paid = Math.min(c.subs, c.paid + 1);
+    if(l.amount>PRICE) extras += l.amount-PRICE; // back-month counted as extra income this month
+    late.splice(i,1); renderOwner();
+    toast("✓ " + l.name + " دفع " + egp(l.amount) + " — " + how);
+  }
+
+  /* ---------- WORKER ---------- */
+  function renderWorker(){
+    const done=cars.filter(c=>c.st==="done").length, abs=cars.filter(c=>c.st==="absent").length, total=cars.length;
+    $("#w-progress").style.width = ((done+abs)/total*100)+"%";
+    $("#w-progress-text").textContent = ar(done+abs) + " من " + ar(total);
+    $("#w-done").textContent=ar(done); $("#w-absent").textContent=ar(abs); $("#w-left").textContent=ar(total-done-abs);
+    $("#cars").innerHTML = cars.map(c=>`
+      <div class="car ${c.st}" data-car="${c.id}">
+        <div class="car-head">
+          <div><div class="name" style="font-weight:800">${c.car}</div><div class="meta">${c.o} · ${c.loc}</div></div>
+          <span class="plate">${c.plate}</span>
+        </div>
+        ${c.st==="todo" ? `
+          <div class="photos">
+            <button class="photo ${c.before?'taken':''}" data-photo="before">${c.before?'✓ صورة قبل':'📷 صورة قبل'}</button>
+            <button class="photo ${c.after?'taken':''}" data-photo="after">${c.after?'✓ صورة بعد':'📷 صورة بعد'}</button>
+          </div>
+          <div class="car-actions">
+            <button class="btn-wash" data-act="done">✓ تم الغسيل</button>
+            <button class="btn-absent" data-act="absent">العربية غايبة</button>
+          </div>` : `
+          <div class="done-msg"><span class="pill ${c.st==='done'?'ok':'warn'}" style="font-size:13px">${c.st==='done'?'✓ اتغسلت':'العربية مش موجودة — اتبلّغ صاحبها'}</span>
+          <button class="undo" data-act="undo">تراجع</button></div>`}
+      </div>`).join("");
+  }
+  $("#cars").addEventListener("click",e=>{
+    const card=e.target.closest("[data-car]"); if(!card) return;
+    const c=cars[+card.dataset.car];
+    const ph=e.target.closest("[data-photo]"), act=e.target.closest("[data-act]");
+    if(ph){ c[ph.dataset.photo]=true; renderWorker(); toast("📷 الصورة اتحفظت (تجريبي)"); return; }
+    if(!act) return;
+    const a=act.dataset.act;
+    if(a==="done"){ c.st="done"; toast("✓ " + c.car + " اتغسلت — وصل إشعار لصاحبها"); if(c.o==="محمد" && sub.washes<sub.total){ sub.washes++; renderSub(); } }
+    if(a==="absent"){ c.st="absent"; toast("اتبعت رسالة لـ" + c.o + ": العربية مكانتش موجودة النهارده"); }
+    if(a==="undo"){ if(c.st==="done" && c.o==="محمد" && sub.washes>0){ sub.washes--; renderSub(); } c.st="todo"; }
+    renderWorker();
+  });
+
+  /* ---------- SUBSCRIBER ---------- */
+  let method="ipa";
+  const methodInfo = {
+    vf:{t:"فودافون كاش", i:"هيوصلك طلب دفع على رقمك <b>٠١٠XXXXXXXX</b>. وافق عليه بالرقم السري بتاع المحفظة وخلاص."},
+    ipa:{t:"إنستاباي", i:"حوّل على العنوان <b dir='ltr'>carwash@instapay</b> <span class='muted'>(عنوان تجريبي)</span><br>أو اضغط «تأكيد» وهيفتحلك تطبيق إنستاباي والمبلغ متكتب. لو حوّلت يدوي، ارفع صورة التحويل وهنأكدها."},
+    card:{t:"كارت", i:"رقم الكارت<div class='fake-input'>•••• •••• •••• 4242</div><div style='display:flex;gap:8px'><div class='fake-input' style='flex:1'>MM/YY</div><div class='fake-input' style='flex:1'>CVV</div></div><div class='muted' style='margin-top:6px;font-size:12px'>الدفع بيتم عن طريق بوابة دفع آمنة (تجريبي)</div>"}
+  };
+  $("#methods").addEventListener("click",e=>{
+    const b=e.target.closest(".method"); if(!b) return;
+    method=b.dataset.m; document.querySelectorAll(".method").forEach(x=>x.classList.toggle("sel",x===b));
+  });
+  let pending=null;
+  function openPay(amount, label, onDone){
+    pending={amount,onDone};
+    $("#sheet-title").textContent = "الدفع بـ" + methodInfo[method].t;
+    $("#sheet-amount").textContent = label + " · " + egp(amount);
+    $("#sheet-inst").innerHTML = methodInfo[method].i;
+    $("#sheet-confirm").textContent = "تأكيد دفع " + egp(amount);
+    $("#overlay").classList.add("show");
+  }
+  function closePay(){ $("#overlay").classList.remove("show"); pending=null; }
+  $("#sheet-cancel").onclick=closePay;
+  $("#overlay").addEventListener("click",e=>{ if(e.target.id==="overlay") closePay(); });
+  $("#sheet-confirm").onclick=()=>{
+    const btn=$("#sheet-confirm"); btn.disabled=true; btn.textContent="جاري الدفع…";
+    setTimeout(()=>{ btn.disabled=false; const p=pending; closePay(); p && p.onDone(); },900);
+  };
+  $("#pay-btn").onclick=()=>{
+    if(sub.paid){ openPay(PRICE,"تجديد شهر ديسمبر",()=>toast("✓ اتجدد لشهر ديسمبر — شكراً!")); return; }
+    openPay(sub.owed,"اشتراك أكتوبر + نوفمبر",()=>{
+      sub.paid=true; markPaid(1, "أونلاين بـ" + methodInfo[method].t); renderSub();
+      toast("✓ اتدفع " + egp(500) + " — وصل إشعار لصاحب الشركة");
+    });
+  };
+  $("#renew-3").onclick=()=>openPay(PRICE*3,"تجديد ٣ شهور",()=>toast("✓ اتجدد ٣ شهور — شكراً!"));
+  $("#extra-btn").onclick=()=>openPay(50,"غسلة إضافية",()=>{
+    extras+=50; const n=$("#extra-note"); n.style.display="block";
+    n.innerHTML="<span class='pill ok'>✓ اتطلبت</span> محمود هيعدّي بكرة الصبح.";
+    toast("✓ اتطلبت غسلة إضافية — ٥٠ ج");
+  });
+  $("#services").innerHTML = services.map((s,i)=>`
+    <div class="row"><div class="grow"><div class="name">${s.n}</div><div class="meta">${s.d}</div></div>
+    <span class="price">${egp(s.p)}</span><button class="btn primary" data-svc="${i}">احجز</button></div>`).join("");
+  $("#services").addEventListener("click",e=>{
+    const b=e.target.closest("[data-svc]"); if(!b || b.disabled) return;
+    const s=services[+b.dataset.svc];
+    openPay(s.p, s.n, ()=>{ extras+=s.p; b.textContent="✓ اتحجز"; b.disabled=true; toast("✓ اتحجز " + s.n); });
+  });
+  $("#copy-ref").onclick=()=>{ try{navigator.clipboard.writeText("EMAN-458");}catch(_){} toast("✓ الكود اتنسخ"); };
+  $("#share-ref").onclick=()=>toast("هيفتح واتساب برسالة جاهزة فيها الكود (تجريبي)");
+
+  function renderSub(){
+    const card=$("#status-card");
+    card.className = "status-card " + (sub.paid?"paid":"late");
+    $("#st-big").textContent = sub.paid ? "مدفوع ✓" : "متأخر — " + egp(sub.owed);
+    $("#st-small").textContent = sub.paid ? "الاشتراك ساري لحد آخر الشهر" : "شهرين مش مدفوعين (أكتوبر ونوفمبر)";
+    $("#st-washes").textContent = ar(sub.washes) + " من " + ar(sub.total);
+    $("#st-bars").innerHTML = Array.from({length:sub.total},(_,i)=>`<i class="${i<sub.washes?'on':''}"></i>`).join("");
+    $("#pay-btn").textContent = sub.paid ? "جدّد شهر ديسمبر — " + egp(PRICE) : "ادفع " + egp(sub.owed);
+  }
+
+  renderOwner(); renderWorker(); renderSub();
+})();
+</script>
+</body>
+</html>
